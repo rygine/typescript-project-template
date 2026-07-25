@@ -1,0 +1,35 @@
+# The Dockerfile enumerates its COPY inputs, so nothing here changes what ends
+# up in the image — it keeps the build context small and stops unrelated edits
+# from invalidating the daemon's cache. Never ignore an input the Dockerfile
+# copies: package.json, yarn.lock, .yarnrc.yml, tsconfig.json,
+# tsdown.config.ts, src.
+
+node_modules
+dist
+.yarn/cache
+.yarn/install-state.gz
+.git
+.github
+.vscode
+docs
+coverage
+*.log
+
+# Agent and editor tooling
+.claude
+.superpowers
+
+# Repo metadata and host-only tooling — none of it is copied into any stage
+.gitattributes
+.gitignore
+.dockerignore
+AGENTS.md
+CLAUDE.md
+README.md
+LICENSE
+compose.yaml
+scripts
+
+.env*
+!.env.example
+.DS_Store

@@ -1,0 +1,59 @@
+services:
+  app:
+    init: true
+    build:
+      context: .
+      target: runtime
+      args:
+        DATA_DIR: ${DATA_DIR:-/data}
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Pinned here, not left to the image's ENV, because env_file is applied
+      # at container start and would silently override it — a NODE_ENV in .env
+      # would otherwise ship a development build with nothing in git status to
+      # show for it. `environment` wins over `env_file`, so this cannot be
+      # overridden that way.
+      NODE_ENV: production
+      PORT: ${PORT:-3000}
+      HOST: ${HOST:-0.0.0.0}
+      DATA_DIR: ${DATA_DIR:-/data}
+    ports:
+      # Loopback by default. Docker's iptables rules bypass ufw, so publishing
+      # on 0.0.0.0 exposes the service regardless of host firewall rules.
+      # Set BIND_ADDR=0.0.0.0 only when you mean it.
+      - "${BIND_ADDR:-127.0.0.1}:${PORT:-3000}:${PORT:-3000}"
+    restart: on-failure:5
+    # SIGTERM, then this long before SIGKILL. The app closes the server and
+    # exits well inside it; the point is that the budget is stated here rather
+    # than inherited from Docker's default, so shortening it is a decision.
+    stop_grace_period: 10s
+    # Blast radius. cap_drop below stops privilege escalation but not a leak
+    # taking the host down with it, and `restart: on-failure:5` means a crash
+    # loop writes logs fast enough to matter.
+    #
+    # No `cpus` limit on purpose: Docker rejects a value above the host's core
+    # count, so any number safe on a laptop is wrong in CI and vice versa. A
+    # single Node process is self-limiting anyway — memory is the real risk.
+    mem_limit: 512m
+    pids_limit: 256
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    read_only: true
+    tmpfs:
+      # Bounded and non-executable: with a read-only root, /tmp is otherwise
+      # the one place code can be dropped and run.
+      - /tmp:size=64m,mode=1777,noexec,nosuid,nodev
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - app-data:${DATA_DIR:-/data}
+
+volumes:
+  app-data:
